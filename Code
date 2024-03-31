@@ -68,6 +68,7 @@ pmf_MZINB1 <- function(z,par){
   return(pmf)
 }
 
+#loglikelihood for MZINB1 
 loglik_MZINB1 <- function(par){
   gamma <- par[1:12]
   beta1 <- par[13:24]
@@ -80,6 +81,7 @@ loglik_MZINB1 <- function(par){
     log(pmf_MZINB1(Z[i,],c(pi0[i],lambda[i,],phi1,phi2)))))
 }
 
+#EM for MZINB1
 EM_MZINB1 <- function(par){
   U0 <- rep(0,12) ##score vector
   H0 <- matrix(0,12,12) ##hessian matrix
@@ -140,238 +142,144 @@ EM_MZINB1 <- function(par){
 }
 
 
-
-##########MZIH1###########
-pmf_MZIH1<- function(z,v,par){
-  pi0=par[1]
-  pi=par[2:3]
-  if (v==1){
-    pmf=1-pi0+pi0*prod(1-pi)
+###############MZIH1###############
+#pmf for MZIH1 
+pmf_MZIH1 <- function(z,par){
+  pi0 <- par[1]
+  pi <- par[2:3]
+  if (all(z==0)){
+    pmf <- 1-pi0+pi0*prod(dbinom(z,1,pi))
   }
   else{
-    pmf=pi0*prod(dbinom(z,1,pi))
+    pmf <- pi0*prod(dbinom(z,1,pi))
   }
   return(pmf)
 }
 
-loglik_MZIH1<- function(par){
-  gamma=par[1:12]
-  beta1=par[13:24]
-  beta2=par[25:36]
-  pi0<-c(exp(X %*% gamma)/(1+exp(X %*% gamma)))
-  pi<-cbind(exp(X %*% beta1)/(1+exp(X %*% beta1)), 
-            exp(X %*% beta2)/(1+exp(X %*% beta2)))
+#loglikelihood for MZIH1 
+loglik_MZIH1 <- function(par){
+  gamma <- par[1:12]
+  beta1 <- par[13:24]
+  beta2 <- par[25:36]
+  pi0 <- c(exp(X%*%gamma)/(1+exp(X%*%gamma)))
+  pi <- cbind(exp(X%*%beta1)/(1+exp(X%*%beta1)), 
+            exp(X%*%beta2)/(1+exp(X%*%beta2)))
   sum(sapply(1:n,function(i) 
-    log(pmf_MZIH1(Z0[i,],v[i],c(pi0[i],pi[i,])))))
+    log(pmf_MZIH1(Z0[i,],c(pi0[i],pi[i,])))))
 }
 
-EM_MZIH1=function(par){
-  start=proc.time()
+#EM for MZIH1 
+EM_MZIH1 <- function(par){
   repeat{
-    gamma=par[1:12]
-    beta1=par[13:24]
-    beta2=par[25:36]
-    pi0<-c(exp(X %*% gamma)/(1+exp(X %*% gamma)))
-    pi<-cbind(exp(X %*% beta1)/(1+exp(X %*% beta1)), 
-              exp(X %*% beta2)/(1+exp(X %*% beta2)))
-    par1<-par
+    gamma <- par[1:12]
+    beta1 <- par[13:24]
+    beta2 <- par[25:36]
+    pi0 <- c(exp(X%*%gamma)/(1+exp(X%*%gamma)))
+    pi <- cbind(exp(X%*%beta1)/(1+exp(X%*%beta1)), 
+              exp(X%*%beta2)/(1+exp(X%*%beta2)))
+    par1 <-par
     ###E-step###
-    u<-(1-pi0)/(1-pi0+pi0*(1-pi[,1])*(1-pi[,2]))
-    tau=1-u*v
+    u <- (1-pi0)/(1-pi0+pi0*(1-pi[,1])*(1-pi[,2]))
+    tau <- 1-u*v
     ###M-step###
-    U0=(tau-pi0)%*%X
-    U1=(Z0[,1]-tau*pi[,1])%*%X
-    U2=(Z0[,2]-tau*pi[,2])%*%X
-    H0=-t(X)%*%(pi0*(1-pi0)*X)
-    H1=-t(X)%*%(tau*pi[,1]*(1-pi[,1])*X)
-    H2=-t(X)%*%(tau*pi[,2]*(1-pi[,2])*X)
+    U0 <- (tau-pi0)%*%X
+    U1 <- (Z0[,1]-tau*pi[,1])%*%X
+    U2 <- (Z0[,2]-tau*pi[,2])%*%X
+    H0 <- -t(X)%*%(pi0*(1-pi0)*X)
+    H1 <- -t(X)%*%(tau*pi[,1]*(1-pi[,1])*X)
+    H2 <- -t(X)%*%(tau*pi[,2]*(1-pi[,2])*X)
 
-    par[1:12]=par1[1:12]-U0%*%solve(H0)
-    par[13:24]=par1[13:24]-U1%*%solve(H1)
-    par[25:36]=par1[25:36]-U2%*%solve(H2)
-    if (loglik_MZIH1(par)-loglik_MZIH1(par1)<10^-8){
+    par[1:12] <- par1[1:12]-U0%*%solve(H0)
+    par[13:24] <- par1[13:24]-U1%*%solve(H1)
+    par[25:36] <- par1[25:36]-U2%*%solve(H2)
+    if (loglik_MZIH1(par)-loglik_MZIH1(par1) < 10^-8){
       break
     }
   }
-  par_name <- c(paste("gamma",0:11,sep="_"),
-                paste("beta1",0:11,sep="_"),
-                paste("beta2",0:11,sep="_"))
-  names(par) <- par_name
-  time <- proc.time()-start
-  return(list(par=par,loglik=loglik_MZIH1(par),time=time))
+  return(par)
 }
 
 
-optim(c(coefficients(logit0),coefficients(logit1),
-        coefficients(logit2)),loglik_MZIH1,
-      method = 'L-BFGS-B',control=list(fnscale=-1))
-
-Hessian.MZIH1<-function(par){
-  gamma=par[1:12]
-  beta1=par[13:24]
-  beta2=par[25:36]
-  pi0<-c(exp(X %*% gamma)/(1+exp(X %*% gamma)))
-  pi<-cbind(exp(X %*% beta1)/(1+exp(X %*% beta1)), 
-            exp(X %*% beta2)/(1+exp(X %*% beta2)))
-  u<-(1-pi0)/(1-pi0+pi0*(1-pi[,1])*(1-pi[,2]))
-  
-  H=matrix(0,36,36)
-  cov_gamma=-v
-  cov_beta1=v*pi[,1]
-  cov_beta2=v*pi[,2]
-  ##gamma
-  for (i in 1:12){
-    for (j in 1:12){
-      H[i,j]=-sum(pi0*(1-pi0)*(X[,i]*X[,j]))+
-        sum((cov_gamma)^2*u*(1-u)*(X[,i]*X[,j]))
-    }
-  }
-  ##beta1
-  for (i in 1:12){
-    for (j in 1:12){
-      H[i+12,j+12]=-sum((1-u*v)*pi[,1]*(1-pi[,1])*(X[,i]*X[,j]))+
-        sum((cov_beta1)^2*u*(1-u)*(X[,i]*X[,j]))
-    }
-  }
-  ##beta2
-  for (i in 1:12){
-    for (j in 1:12){
-      H[i+24,j+24]=-sum((1-u*v)*pi[,2]*(1-pi[,2])*(X[,i]*X[,j]))+
-        sum((cov_beta2)^2*u*(1-u)*(X[,i]*X[,j]))
-    }
-  }
-  ##gamma*beta1
-  for (i in 1:12){
-    for (j in 1:12){
-      H[i,j+12]=sum(cov_gamma*cov_beta1*u*(1-u)*(X[,i]*X[,j]))
-    }
-  }
-  H[13:24,1:12]=t(H[1:12,13:24])
-  
-  ##gamma*beta2
-  for (i in 1:12){
-    for (j in 1:12){
-      H[i,j+24]=sum(cov_gamma*cov_beta2*u*(1-u)*(X[,i]*X[,j]))
-    }
-  }
-  H[25:36,1:12]=t(H[1:12,25:36])
-  
-  ##beta1*beta2
-  for (i in 1:12){
-    for (j in 1:12){
-      H[i+12,j+24]=sum(cov_beta1*cov_beta2*u*(1-u)*(X[,i]*X[,j]))
-    }
-  }
-  H[25:36,13:24]=t(H[13:24,25:36])
-  return(H)
-}
-
-par.MZIH1=EM_MZIH1(rep(0,36))$par
-hessian.MZIH1=Hessian.MZIH1(par.MZIH1)
-round(par.MZIH1/sqrt(diag(solve(-hessian.MZIH1))),digits=3)
-
-loglik.MZIH1=loglik_MZIH1(par.MZIH1)+
-  c(logLik(count1SNB)+logLik(count2SNB))
-AIC.MZIH1=-2*loglik.MZIH1+2*41
-BIC.MZIH1=-2*loglik.MZIH1+log(n)*41
-
-###############MZIP2##############
-pmf_MP<- function(z,par){
-  lambda0=par[1]
-  lambda=par[2:3]
-  k=min(z)
-  pmf=numeric(k+1)
+#pmf for MP
+pmf_MP <- function(z,par){
+  lambda0 <- par[1]
+  lambda <- par[2:3]
+  k <- min(z)
+  pmf <- numeric(k+1)
   for (i in 0:k){
-    pmf[i+1]=dpois(i,lambda0)*prod(dpois(z-i,lambda))
+    pmf[i+1] <- dpois(i,lambda0)*prod(dpois(z-i,lambda))
   }
   return (sum(pmf))
 }
 
-pmf_MZIP2<- function(z,v,par){
-  pi0=par[1]
-  lambda0=par[2]
-  lambda=par[3:4]
-  if (v==1){
-    pmf=1-pi0+pi0*exp(-lambda0-sum(lambda))
+#pmf for MZIP2
+pmf_MZIP2 <- function(z,par){
+  pi0 <- par[1]
+  lambda0 <- par[2]
+  lambda <- par[3:4]
+  if (all(z==0)){
+    pmf <- 1-pi0+pi0*exp(-lambda0-sum(lambda))
   }
   else{
-    pmf=pi0*pmf_MP(z,par[2:4])
+    pmf <- pi0*pmf_MP(z,par[2:4])
   }
   return (pmf)
 }
 
-loglik_MZIP2<- function(par){
-  gamma=par[1:12]
-  lambda0=par[13]
-  beta1=par[14:25]
-  beta2=par[26:37]
-  pi0<-c(exp(X %*% gamma)/(1+exp(X %*% gamma)))
-  lambda=exp(cbind(X %*% beta1, X %*% beta2))
+#loglikelihood for MZIP2
+loglik_MZIP2 <- function(par){
+  gamma <- par[1:12]
+  lambda0 <- par[13]
+  beta1 <- par[14:25]
+  beta2 <- par[26:37]
+  pi0 <- c(exp(X%*%gamma)/(1+exp(X%*%gamma)))
+  lambda=exp(cbind(X%*%beta1, X%*%beta2))
   sum(sapply(1:n,function(i) 
-    log(pmf_MZIP2(Z[i,],v[i],c(pi0[i],lambda0,lambda[i,])))))
+    log(pmf_MZIP2(Z[i,],c(pi0[i],lambda0,lambda[i,])))))
 }
 
-
-optim(c(rep(0,12),0.01,rep(0,12),rep(0,12)),loglik_MZIP2,
-      method = 'L-BFGS-B',control=list(fnscale=-1))
-
+#EM for MZIP2
 EM_MZIP2 <- function(par){
-  n0=numeric(n)
+  n0 <- numeric(n)
   repeat{ 
-    gamma=par[1:12]
-    lambda0=par[13]
-    beta1=par[14:25]
-    beta2=par[26:37]
-    pi0<-c(exp(X %*% gamma)/(1+exp(X %*% gamma)))
-    lambda=exp(cbind(X %*% beta1, X %*% beta2))
-    par1<-par
+    gamma <- par[1:12]
+    lambda0 <- par[13]
+    beta1 <- par[14:25]
+    beta2 <- par[26:37]
+    pi0 <- c(exp(X%*%gamma)/(1+exp(X%*%gamma)))
+    lambda <- exp(cbind(X%*%beta1, X%*%beta2))
+    par1 <- par
     ###E-step###
-    u<-(1-pi0)/(1-pi0+pi0*exp(-lambda0-apply(lambda,1,sum)))
+    u <- (1-pi0)/(1-pi0+pi0*exp(-lambda0-apply(lambda,1,sum)))
     for (i in 1:n){
       if (min(Z[i,])==0){
-        n0[i]=0
+        n0[i] <- 0
       }
       else{
-        n0[i]<-lambda0*pmf_MP(Z[i,]-1,c(lambda0,lambda[i,]))/
+        n0[i] <- lambda0*pmf_MP(Z[i,]-1,c(lambda0,lambda[i,]))/
           pmf_MP(Z[i,],c(lambda0,lambda[i,]))
       }
     }
     tau=1-u*v
     ###M-step###
-    U0=(tau-pi0)%*%X
-    U1=(Z[,1]-n0-tau*lambda[,1])%*%X
-    U2=(Z[,2]-n0-tau*lambda[,2])%*%X
-    H0=-t(X)%*%(pi0*(1-pi0)*X)
-    H1=-t(X)%*%(tau*lambda[,1]*X)
-    H2=-t(X)%*%(tau*lambda[,2]*X)
+    U0 <- (tau-pi0)%*%X
+    U1 <- (Z[,1]-n0-tau*lambda[,1])%*%X
+    U2 <- (Z[,2]-n0-tau*lambda[,2])%*%X
+    H0 <- -t(X)%*%(pi0*(1-pi0)*X)
+    H1 <- -t(X)%*%(tau*lambda[,1]*X)
+    H2 <- -t(X)%*%(tau*lambda[,2]*X)
     
-    par[1:12]=par1[1:12]-U0%*%solve(H0)
-    par[13]=sum(n0)/sum(tau)
-    par[14:25]=par1[14:25]-U1%*%solve(H1)
-    par[26:37]=par1[26:37]-U2%*%solve(H2)
-    if (loglik_MZIP2(par)-loglik_MZIP2(par1)<10^-8){
+    par[1:12] <- par1[1:12]-U0%*%solve(H0)
+    par[13] <- sum(n0)/sum(tau)
+    par[14:25] <- par1[14:25]-U1%*%solve(H1)
+    par[26:37] <- par1[26:37]-U2%*%solve(H2)
+    if (loglik_MZIP2(par)-loglik_MZIP2(par1) < 10^-8){
       break
     }
   }
   return (par)
 }
 
-
-# gradient.MZIP2<-function(par){
-#   p=length(par)
-#   grad=numeric(p)
-#   for (i in 1:p){
-#     par_plus=par+1e-8*diag(p)[i,]
-#     grad[i]=(loglik_MZIP2(par_plus)-loglik_MZIP2(par))/1e-8
-#   }
-#   return (grad)
-# }
-# gradient.MZIP2(par.MZIP2)
-
-par.MZIP2=EM_MZIP2(c(rep(0,12),0.01,rep(0,12),rep(0,12)))
-loglik.MZIP2=loglik_MZIP2(par.MZIP2)
-AIC.MZIP2=-2*loglik.MZIP2+2*37
-BIC.MZIP2=-2*loglik.MZIP2+log(n)*37
 
 ##########MZINB2##########
 pmf_MZINB2<- function(z,v,par){
