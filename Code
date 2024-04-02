@@ -1,3 +1,5 @@
+library(gamlss)
+
 ###############MZIP1###############
 #pmf for MZIP1
 pmf_MZIP1 <- function(z,par){
